@@ -16,10 +16,10 @@ from groq import Groq
 # -------------------------------  
 # API KEYS (REEMPLAZAR CON TUS CLAVES)  
 # -------------------------------  
-GROQ_API_KEY = ""  # Agrega tu clave API de GROQ aquí  
-GEMINI_API_KEY = ""  # Agrega tu clave API de GEMINI aquí  
-ELEVENLABS_API_KEY = ""  # Agrega tu clave API de ELEVENLABS aquí  
-ELEVENLABS_VOICE_ID = ""  # Agrega tu ID de voz de ElevenLabs aquí  
+GROQ_API_KEY = "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"
+GEMINI_API_KEY = "AIzaSyDSZMkphVRVJenyacVR2USWJl1IzPiGCmY"
+ELEVENLABS_API_KEY = "sk_573785e9c51111ae48c31e6c903befbbb620fe3c67691965"
+ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
   
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key={GEMINI_API_KEY}"  
   
