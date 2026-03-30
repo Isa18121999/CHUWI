@@ -257,7 +257,7 @@ def activar_robot():
                 break  
             continue  
   
-        if "gracias" in texto.lower():  
+        if "chau" in texto.lower():  
             hablar("Fue lindo hablar contigo")  
             break  
   
