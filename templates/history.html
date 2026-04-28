@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Historial{% endblock %}
+
+{% block body %}
+<nav>
+    <span class="logo">🤖 Chuwibot</span>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/history" class="active">Historial</a>
+        <div style="position:relative;">
+            <span class="notification-bell" onclick="toggleNotifPanel()">
+                🔔 <span class="count" id="notif-count">0</span>
+            </span>
+            <div class="notification-panel" id="notif-panel"></div>
+        </div>
+        <a href="#" onclick="logout()">Salir</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="grid grid-2">
+        <!-- Sessions list -->
+        <div class="card">
+            <h3>Sesiones</h3>
+            <div id="session-list" style="margin-top:1rem; max-height:500px; overflow-y:auto;"></div>
+        </div>
+
+        <!-- Conversation detail -->
+        <div class="card">
+            <h3>Conversacion</h3>
+            <div id="session-info" style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;"></div>
+            <div class="chat-container" id="chat-view" style="max-height:400px; overflow-y:auto;">
+                <p style="color:var(--text-muted); font-size:0.85rem;">Selecciona una sesion para ver la conversacion</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    if (!getToken()) window.location.href = '/';
+
+    let allSessions = [];
+
+    async function loadSessions() {
+        const res = await apiFetch('/api/sessions?limit=50');
+        if (!res.ok) return;
+        allSessions = await res.json();
+        const list = document.getElementById('session-list');
+        list.innerHTML = allSessions.map(s => `
+            <div onclick="loadConversation(${s.id})"
+                 style="padding:0.75rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.2s;"
+                 onmouseover="this.style.background='var(--bg-input)'"
+                 onmouseout="this.style.background='transparent'"
+                 id="session-${s.id}">
+                <div style="display:flex;justify-content:space-between;">
+                    <strong>Sesion #${s.id}</strong>
+                    ${s.emocion_inicial ? `<span class="badge badge-info">${s.emocion_inicial}</span>` : ''}
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-muted);">${new Date(s.inicio).toLocaleString()}</div>
+            </div>
+        `).join('');
+
+        // Auto-select from URL
+        const params = new URLSearchParams(location.search);
+        const sid = params.get('session');
+        if (sid) loadConversation(parseInt(sid));
+    }
+
+    async function loadConversation(sessionId) {
+        const res = await apiFetch(`/api/sessions/${sessionId}/interactions`);
+        if (!res.ok) return;
+        const interactions = await res.json();
+        const session = allSessions.find(s => s.id === sessionId);
+
+        document.getElementById('session-info').innerHTML = session
+            ? `Sesion #${session.id} | Inicio: ${new Date(session.inicio).toLocaleString()} | Emocion: ${session.emocion_inicial || '-'}`
+            : '';
+
+        const chat = document.getElementById('chat-view');
+        if (interactions.length === 0) {
+            chat.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Sin interacciones</p>';
+            return;
+        }
+
+        chat.innerHTML = interactions.map(i => `
+            <div class="chat-bubble ${i.rol === 'usuario' ? 'chat-user' : 'chat-robot'}">
+                <div style="font-size:0.7rem;color:rgba(255,255,255,0.6);margin-bottom:2px;">
+                    ${i.rol === 'usuario' ? 'Paciente' : 'Chuwibot'}
+                    ${i.emocion ? ` | ${i.emocion}` : ''}
+                </div>
+                ${i.texto}
+                <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-top:4px;">
+                    ${new Date(i.timestamp).toLocaleTimeString()}
+                </div>
+            </div>
+        `).join('');
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function toggleNotifPanel() {
+        document.getElementById('notif-panel').classList.toggle('open');
+    }
+
+    loadSessions();
+</script>
+{% endblock %}

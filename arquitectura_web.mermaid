@@ -1,0 +1,83 @@
+graph TD
+    subgraph "Internet"
+        U[👤 Usuario - Navegador] -->|HTTPS| CF[☁️ Cloudflare Tunnel]
+    end
+
+    subgraph "Raspberry Pi / Servidor"
+        CF -->|localhost:8000| WS[🌐 FastAPI - Servidor Web]
+
+        subgraph "Web App"
+            WS --> AUTH[🔐 Login / Autenticación\nJWT Tokens]
+            AUTH --> DASH[📊 Dashboard\nJinja2 + HTMX]
+            AUTH --> CTRL[🎮 Panel de Control\nActivar/Detener Robot]
+            AUTH --> HIST[📋 Historial\nInteracciones pasadas]
+        end
+
+        subgraph "Base de Datos - PostgreSQL"
+            DB[(🐘 PostgreSQL\nchuwibot_db)]
+            DB --- T1[usuarios\nid, username, password_hash, rol]
+            DB --- T2[sesiones_robot\nid, inicio, fin, emocion_inicial]
+            DB --- T3[interacciones\nid, sesion_id, timestamp,\nrol, texto, emocion]
+            DB --- T4[metricas\nid, fecha, total_sesiones,\nemociones_detectadas]
+            DB --- T5[notificaciones\nid, sesion_id, tipo, mensaje,\ntimestamp, leida]
+        end
+
+        subgraph "Robot Core"
+            RC[🤖 Robot Process\nSubproceso controlado por web]
+            RC --> CAM[📷 Cámara USB\nOpenCV]
+            RC --> MIC[🎤 Micrófono\nSpeechRecognition]
+            RC --> SPK[🔊 Altavoz\naplay / mpg123]
+        end
+
+        subgraph "Sistema de Notificaciones"
+            NOTIF[🔔 Notificación Service]
+            NOTIF -->|Push navegador| PUSH[Web Push API\nService Worker]
+            NOTIF -->|En dashboard| BELL[🔔 Badge tiempo real\nWebSocket]
+            NOTIF -->|Registro| DB
+        end
+
+        subgraph "APIs Externas"
+            GEMINI[Google Gemini 2.5 Flash\nEmoción facial]
+            GROQ[Groq - LLaMA 3.1 8B\nRespuestas IA]
+            TTS_1[ElevenLabs TTS\nVoz principal]
+            TTS_2[Edge TTS\nVoz fallback]
+        end
+
+        subgraph "WebSocket - Tiempo Real"
+            WSK[🔌 WebSocket /ws/robot]
+            WSK -->|Estado en vivo| DASH
+            WSK -->|Logs en tiempo real| HIST
+            WSK -->|Notificaciones| BELL
+            RC -->|Eventos| WSK
+        end
+    end
+
+    %% Conexiones Web -> Robot
+    CTRL -->|Iniciar/Detener| RC
+    RC -->|Guardar interacción| DB
+    AUTH -->|Verificar credenciales| DB
+
+    %% Conexiones Robot -> APIs
+    RC --> GEMINI
+    RC --> GROQ
+    RC --> TTS_1
+    RC --> TTS_2
+
+    %% Robot -> Notificaciones (cada vez que habla)
+    SPK -->|Evento hablar| NOTIF
+
+    %% Conexiones Dashboard -> DB
+    DASH -->|Consultar métricas| DB
+    HIST -->|Consultar historial| DB
+
+    %% ORM
+    WS -.->|SQLAlchemy + asyncpg| DB
+
+    %% Estilos
+    style CF fill:#f59e0b,stroke:#d97706,color:#000
+    style WS fill:#3b82f6,stroke:#2563eb,color:#fff
+    style DB fill:#336791,stroke:#1d4e6e,color:#fff
+    style RC fill:#ef4444,stroke:#dc2626,color:#fff
+    style WSK fill:#8b5cf6,stroke:#7c3aed,color:#fff
+    style AUTH fill:#f97316,stroke:#ea580c,color:#fff
+    style NOTIF fill:#ec4899,stroke:#db2777,color:#fff

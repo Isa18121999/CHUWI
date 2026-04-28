@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: chuwibot_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chuwibot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chuwibot_secret}
+      POSTGRES_DB: chuwibot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chuwibot -d chuwibot_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    container_name: chuwibot_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://chuwibot:${POSTGRES_PASSWORD:-chuwibot_secret}@db:5432/chuwibot_db
+      SECRET_KEY: ${SECRET_KEY:-cambiar-en-produccion-abc123}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-21m00Tcm4TlvDq8ikWAM}
+    volumes:
+      - .:/app
+    # devices:
+    #   - /dev/video0:/dev/video0  # Descomentar cuando haya cámara conectada
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

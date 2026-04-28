@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block body %}
+<nav>
+    <span class="logo">🤖 Chuwibot</span>
+    <div class="nav-links">
+        <a href="/dashboard" class="active">Dashboard</a>
+        <a href="/history">Historial</a>
+        <div style="position:relative;">
+            <span class="notification-bell" onclick="toggleNotifPanel()">
+                🔔 <span class="count" id="notif-count">0</span>
+            </span>
+            <div class="notification-panel" id="notif-panel"></div>
+        </div>
+        <a href="#" onclick="logout()">Salir</a>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Stats -->
+    <div class="grid grid-4" style="margin-bottom:1.5rem;" id="stats-grid">
+        <div class="card">
+            <h3>Estado del Robot</h3>
+            <div class="value" id="robot-state">
+                <span class="status-dot stopped"></span>
+                <span style="font-size:1rem;">Cargando...</span>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Total Sesiones</h3>
+            <div class="value" id="total-sessions">-</div>
+        </div>
+        <div class="card">
+            <h3>Total Interacciones</h3>
+            <div class="value" id="total-interactions">-</div>
+        </div>
+        <div class="card">
+            <h3>Notificaciones</h3>
+            <div class="value" id="unread-notifs">-</div>
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <!-- Robot Control -->
+        <div class="card">
+            <h3>Control del Robot</h3>
+            <div style="display:flex; gap:1rem; margin-top:1rem;">
+                <button class="btn btn-success" id="btn-start" onclick="startRobot()">
+                    ▶ Iniciar
+                </button>
+                <button class="btn btn-danger" id="btn-stop" onclick="stopRobot()" disabled>
+                    ■ Detener
+                </button>
+            </div>
+            <div id="robot-log" style="margin-top:1rem; max-height:250px; overflow-y:auto; font-size:0.85rem; color:var(--text-muted);">
+            </div>
+        </div>
+
+        <!-- Emotions Chart -->
+        <div class="card">
+            <h3>Emociones Detectadas</h3>
+            <div id="emotions-chart" style="margin-top:1rem;"></div>
+        </div>
+    </div>
+
+    <!-- Recent sessions -->
+    <div class="card" style="margin-top:1.5rem;">
+        <h3>Sesiones Recientes</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Emocion Inicial</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="sessions-table"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    if (!getToken()) window.location.href = '/';
+
+    // --- WebSocket ---
+    let ws;
+    function connectWS() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/ws/robot`);
+
+        ws.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            if (msg.event === 'robot_state') updateRobotState(msg.data.state);
+            if (msg.event === 'robot_speak') addLog(`🔊 ${msg.data.text}`);
+            if (msg.event === 'notificacion') {
+                showToast(`🔔 ${msg.data.mensaje}`);
+                loadNotifications();
+                loadStats();
+            }
+        };
+
+        ws.onclose = () => setTimeout(connectWS, 3000);
+    }
+    connectWS();
+
+    // --- State ---
+    function updateRobotState(state) {
+        const el = document.getElementById('robot-state');
+        const labels = { stopped: 'Detenido', waiting: 'Esperando', interacting: 'Interactuando' };
+        el.innerHTML = `<span class="status-dot ${state}"></span><span style="font-size:1rem;">${labels[state]}</span>`;
+
+        document.getElementById('btn-start').disabled = state !== 'stopped';
+        document.getElementById('btn-stop').disabled = state === 'stopped';
+    }
+
+    function addLog(text) {
+        const log = document.getElementById('robot-log');
+        const time = new Date().toLocaleTimeString();
+        log.innerHTML += `<div>[${time}] ${text}</div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // --- API calls ---
+    async function loadStats() {
+        const res = await apiFetch('/api/dashboard/stats');
+        if (!res.ok) return;
+        const d = await res.json();
+        document.getElementById('total-sessions').textContent = d.total_sessions;
+        document.getElementById('total-interactions').textContent = d.total_interactions;
+        document.getElementById('unread-notifs').textContent = d.unread_notifications;
+        updateRobotState(d.robot_state);
+
+        const countEl = document.getElementById('notif-count');
+        if (d.unread_notifications > 0) {
+            countEl.textContent = d.unread_notifications;
+            countEl.style.display = 'block';
+        } else {
+            countEl.style.display = 'none';
+        }
+
+        // Emotions
+        const chart = document.getElementById('emotions-chart');
+        if (Object.keys(d.emotions).length > 0) {
+            const max = Math.max(...Object.values(d.emotions));
+            chart.innerHTML = Object.entries(d.emotions).map(([emo, count]) =>
+                `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                    <span style="min-width:80px;font-size:0.85rem;">${emo}</span>
+                    <div style="flex:1;background:var(--bg-input);border-radius:4px;height:24px;">
+                        <div style="width:${(count/max)*100}%;background:var(--primary);height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:0.75rem;">${count}</div>
+                    </div>
+                </div>`
+            ).join('');
+        } else {
+            chart.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Sin datos aún</p>';
+        }
+    }
+
+    async function loadSessions() {
+        const res = await apiFetch('/api/sessions?limit=10');
+        if (!res.ok) return;
+        const sessions = await res.json();
+        const tbody = document.getElementById('sessions-table');
+        tbody.innerHTML = sessions.map(s => `
+            <tr>
+                <td>#${s.id}</td>
+                <td>${new Date(s.inicio).toLocaleString()}</td>
+                <td>${s.fin ? new Date(s.fin).toLocaleString() : '<span class="badge badge-warning">Activa</span>'}</td>
+                <td>${s.emocion_inicial || '-'}</td>
+                <td><a href="/history?session=${s.id}" style="color:var(--primary);">Ver</a></td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadNotifications() {
+        const res = await apiFetch('/api/notifications?limit=20');
+        if (!res.ok) return;
+        const notifs = await res.json();
+        const panel = document.getElementById('notif-panel');
+        panel.innerHTML = notifs.length === 0
+            ? '<div class="notif-item" style="color:var(--text-muted);">Sin notificaciones</div>'
+            : notifs.map(n => `
+                <div class="notif-item ${n.leida ? '' : 'unread'}" onclick="markRead(${n.id}, this)">
+                    <div>${n.mensaje}</div>
+                    <div class="notif-time">${new Date(n.timestamp).toLocaleString()}</div>
+                </div>
+            `).join('');
+    }
+
+    function toggleNotifPanel() {
+        document.getElementById('notif-panel').classList.toggle('open');
+    }
+
+    async function markRead(id, el) {
+        await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' });
+        el.classList.remove('unread');
+        loadStats();
+    }
+
+    async function startRobot() {
+        const res = await apiFetch('/api/robot/start', { method: 'POST' });
+        if (res.ok) {
+            addLog('🟢 Robot iniciado');
+            showToast('Robot iniciado');
+        }
+    }
+
+    async function stopRobot() {
+        const res = await apiFetch('/api/robot/stop', { method: 'POST' });
+        if (res.ok) {
+            addLog('🔴 Robot detenido');
+            showToast('Robot detenido');
+        }
+    }
+
+    // --- Init ---
+    loadStats();
+    loadSessions();
+    loadNotifications();
+    setInterval(loadStats, 30000);
+</script>
+{% endblock %}
