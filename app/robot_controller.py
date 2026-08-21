@@ -28,6 +28,8 @@ class RobotState(str, Enum):
 
 
 class RobotController:
+    GREETING = "Hola, me llamo Chuwi. Me alegra conocerte."
+
     def __init__(self):
         self.state = RobotState.STOPPED
         self.current_session_id: int | None = None
@@ -214,6 +216,12 @@ class RobotController:
                 sesion_id=session.id,
             )
 
+            
+            # Presentación determinista: el niño recibe siempre un primer
+            # mensaje claro, incluso si algún servicio de IA no está disponible.
+            self.historial = []
+            await self._save_interaction(db, "robot", self.GREETING)
+            await self._speak(self.GREETING, db)
             # Take photo and detect emotion
             photo_path = tempfile.mktemp(suffix=".jpg")
             await asyncio.to_thread(self._take_photo, photo_path)
