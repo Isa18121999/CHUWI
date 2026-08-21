@@ -15,6 +15,7 @@ import asyncio
 import edge_tts
 
 robot_ocupado = False
+SALUDO_INICIAL = "Hola, me llamo Chuwi. Me alegra conocerte."
 
 from groq import Groq
 from picamera2 import Picamera2
@@ -243,7 +244,8 @@ def activar_robot():
         global robot_ocupado
 
         print("🚨 Persona detectada")
-
+     # El saludo no debe depender de la detección emocional ni de una API.
+        hablar(SALUDO_INICIAL)
         ruta = "/tmp/foto.jpg"
         tomar_foto(ruta)
 
