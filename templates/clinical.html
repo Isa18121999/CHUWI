@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Registro clínico{% endblock %}
+
+{% block body %}
+<nav>
+    <span class="logo">🤖 Chuwibot</span>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/history">Historial</a>
+        <a href="/clinical" class="active">Registro clínico</a>
+        <a href="#" onclick="logout()">Salir</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card" style="margin-bottom:1.5rem; border-color:var(--warning);">
+        <h3>Acceso clínico restringido</h3>
+        <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.5;">
+            La identidad real no aparece en el dashboard. Registra o activa al paciente antes de iniciar Chuwi.
+            Al consultar una identidad se solicita un motivo y se registra la auditoría.
+        </p>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <h3>Registrar paciente</h3>
+            <form id="patient-form" style="display:flex; flex-direction:column; gap:0.9rem; margin-top:1rem;">
+                <div>
+                    <label style="font-size:0.8rem; color:var(--text-muted);">Nombre completo</label>
+                    <input id="patient-name" required maxlength="150" autocomplete="off">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; color:var(--text-muted);">Identificador clínico (opcional)</label>
+                    <input id="patient-record" maxlength="80" autocomplete="off">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; color:var(--text-muted);">Perfil de acompañamiento</label>
+                    <select id="patient-profile"><option value="">Sin perfil</option></select>
+                </div>
+                <button type="submit" class="btn btn-primary">Registrar paciente</button>
+            </form>
+            <p id="form-message" style="margin-top:0.75rem; color:var(--text-muted); font-size:0.85rem;"></p>
+        </div>
+
+        <div class="card">
+            <h3>Paciente activo</h3>
+            <div id="active-patient" style="margin-top:1rem; color:var(--text-muted);">Cargando…</div>
+            <p style="margin-top:1rem; color:var(--text-muted); font-size:0.85rem; line-height:1.5;">
+                Detén el robot antes de cambiar de paciente. Las siguientes sesiones se vincularán al paciente activo,
+                pero el dashboard seguirá mostrando solo su código público.
+            </p>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem;">
+        <h3>Pacientes registrados</h3>
+        <div style="overflow-x:auto; margin-top:1rem;">
+            <table>
+                <thead><tr><th>Código público</th><th>Perfil</th><th>Acciones</th></tr></thead>
+                <tbody id="patient-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" id="identity-card" style="margin-top:1.5rem; display:none; border-color:var(--primary);">
+        <h3>Identidad consultada</h3>
+        <div id="identity-details" style="margin-top:0.8rem; line-height:1.8;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    if (!getToken()) window.location.href = '/';
+    if (!['doctor', 'admin'].includes(getRole())) {
+        document.querySelector('.container').innerHTML = '<div class="card"><h3>Acceso restringido</h3><p>Esta pantalla es solo para personal clínico autorizado.</p></div>';
+    } else {
+        loadProfiles();
+        loadPatients();
+        loadRobotStatus();
+    }
+
+    function escapeHtml(value) {
+        const node = document.createElement('div');
+        node.textContent = value || '';
+        return node.innerHTML;
+    }
+
+    async function loadProfiles() {
+        const res = await apiFetch('/api/support-profiles');
+        if (!res.ok) return;
+        const profiles = await res.json();
+        const select = document.getElementById('patient-profile');
+        select.innerHTML = '<option value="">Sin perfil</option>' + profiles.map(profile =>
+            `<option value="${profile.id}">${escapeHtml(profile.alias)} (${escapeHtml(profile.rango_edad)})</option>`
+        ).join('');
+    }
+
+    async function loadPatients() {
+        const res = await apiFetch('/api/clinical/patients');
+        if (!res.ok) return;
+        const patients = await res.json();
+        const table = document.getElementById('patient-table');
+        table.innerHTML = patients.length ? patients.map(patient => `
+            <tr>
+                <td>${escapeHtml(patient.codigo_publico)}</td>
+                <td>${patient.perfil_id ? `Perfil #${patient.perfil_id}` : 'Sin perfil'}</td>
+                <td style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn btn-success" onclick="activatePatient(${patient.id})">Activar</button>
+                    <button class="btn btn-primary" onclick="openIdentity(${patient.id})">Ver identidad</button>
+                </td>
+            </tr>`).join('') : '<tr><td colspan="3" style="color:var(--text-muted);">No hay pacientes registrados.</td></tr>';
+    }
+
+    async function loadRobotStatus() {
+        const res = await apiFetch('/api/robot/status');
+        if (!res.ok) return;
+        const status = await res.json();
+        document.getElementById('active-patient').textContent = status.active_patient || 'Ningún paciente seleccionado';
+    }
+
+    document.getElementById('patient-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const profileId = document.getElementById('patient-profile').value;
+        const res = await apiFetch('/api/clinical/patients', {
+            method: 'POST',
+            body: {
+                nombre_completo: document.getElementById('patient-name').value.trim(),
+                identificador_clinico: document.getElementById('patient-record').value.trim() || null,
+                perfil_id: profileId ? Number(profileId) : null,
+            },
+        });
+        const message = document.getElementById('form-message');
+        if (!res.ok) {
+            const error = await res.json();
+            message.textContent = error.detail || 'No se pudo registrar el paciente.';
+            message.style.color = 'var(--danger)';
+            return;
+        }
+        const patient = await res.json();
+        message.textContent = `${patient.codigo_publico} registrado.`;
+        message.style.color = 'var(--success)';
+        event.target.reset();
+        loadPatients();
+    });
+
+    async function activatePatient(patientId) {
+        const res = await apiFetch(`/api/clinical/patients/${patientId}/activate`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.detail || 'No se pudo activar el paciente.');
+        showToast(data.message);
+        loadRobotStatus();
+    }
+
+    async function openIdentity(patientId) {
+        const reason = window.prompt('Indica el motivo clínico de esta consulta:');
+        if (!reason || !reason.trim()) return;
+        const res = await apiFetch(`/api/clinical/patients/${patientId}/open`, {
+            method: 'POST', body: { motivo: reason.trim() },
+        });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.detail || 'No se pudo consultar la identidad.');
+        document.getElementById('identity-details').innerHTML =
+            `<strong>${escapeHtml(data.codigo_publico)}</strong><br>` +
+            `Nombre: ${escapeHtml(data.nombre_completo)}<br>` +
+            `Identificador clínico: ${escapeHtml(data.identificador_clinico || 'No registrado')}`;
+        document.getElementById('identity-card').style.display = '';
+    }
+</script>
+{% endblock %}
