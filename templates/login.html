@@ -48,6 +48,7 @@
         if (res.ok) {
             const data = await res.json();
             setToken(data.access_token);
+            setRole(data.rol);
             window.location.href = '/dashboard';
         } else {
             errEl.textContent = 'Credenciales incorrectas';
