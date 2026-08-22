@@ -3,13 +3,13 @@
 
 {% block body %}
 <nav>
-    <span class="logo">🤖 Chuwibot</span>
+    <span class="logo">🤖 – Chuwibot</span>
     <div class="nav-links">
         <a href="/dashboard" class="active">Dashboard</a>
         <a href="/history">Historial</a>
         <div style="position:relative;">
             <span class="notification-bell" onclick="toggleNotifPanel()">
-                🔔 <span class="count" id="notif-count">0</span>
+                ðŸ”” <span class="count" id="notif-count">0</span>
             </span>
             <div class="notification-panel" id="notif-panel"></div>
         </div>
@@ -47,10 +47,10 @@
             <h3>Control del Robot</h3>
             <div style="display:flex; gap:1rem; margin-top:1rem;">
                 <button class="btn btn-success" id="btn-start" onclick="startRobot()">
-                    ▶ Iniciar
+                    â–¶ Iniciar
                 </button>
                 <button class="btn btn-danger" id="btn-stop" onclick="stopRobot()" disabled>
-                    ■ Detener
+                    â–  Detener
                 </button>
             </div>
             <div id="robot-log" style="margin-top:1rem; max-height:250px; overflow-y:auto; font-size:0.85rem; color:var(--text-muted);">
@@ -71,6 +71,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Paciente</th>
                     <th>Inicio</th>
                     <th>Fin</th>
                     <th>Emocion Inicial</th>
@@ -96,9 +97,9 @@
         ws.onmessage = (e) => {
             const msg = JSON.parse(e.data);
             if (msg.event === 'robot_state') updateRobotState(msg.data.state);
-            if (msg.event === 'robot_speak') addLog(`🔊 ${msg.data.text}`);
+            if (msg.event === 'robot_speak') addLog(`ðŸ”Š ${msg.data.text}`);
             if (msg.event === 'notificacion') {
-                showToast(`🔔 ${msg.data.mensaje}`);
+                showToast(`ðŸ”” ${msg.data.mensaje}`);
                 loadNotifications();
                 loadStats();
             }
@@ -156,7 +157,7 @@
                 </div>`
             ).join('');
         } else {
-            chart.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Sin datos aún</p>';
+            chart.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Sin datos aÃºn</p>';
         }
     }
 
@@ -168,6 +169,7 @@
         tbody.innerHTML = sessions.map(s => `
             <tr>
                 <td>#${s.id}</td>
+                <td>${s.paciente}</td>
                 <td>${new Date(s.inicio).toLocaleString()}</td>
                 <td>${s.fin ? new Date(s.fin).toLocaleString() : '<span class="badge badge-warning">Activa</span>'}</td>
                 <td>${s.emocion_inicial || '-'}</td>
@@ -204,7 +206,7 @@
     async function startRobot() {
         const res = await apiFetch('/api/robot/start', { method: 'POST' });
         if (res.ok) {
-            addLog('🟢 Robot iniciado');
+            addLog('ðŸŸ¢ Robot iniciado');
             showToast('Robot iniciado');
         }
     }
@@ -212,7 +214,7 @@
     async function stopRobot() {
         const res = await apiFetch('/api/robot/stop', { method: 'POST' });
         if (res.ok) {
-            addLog('🔴 Robot detenido');
+            addLog('ðŸ”´ Robot detenido');
             showToast('Robot detenido');
         }
     }
