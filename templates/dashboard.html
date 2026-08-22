@@ -7,6 +7,7 @@
     <div class="nav-links">
         <a href="/dashboard" class="active">Dashboard</a>
         <a href="/history">Historial</a>
+         <a href="/clinical" class="clinical-link" style="display:none;">Registro clínico</a>
         <div style="position:relative;">
             <span class="notification-bell" onclick="toggleNotifPanel()">
                 ðŸ”” <span class="count" id="notif-count">0</span>
@@ -87,7 +88,9 @@
 {% block scripts %}
 <script>
     if (!getToken()) window.location.href = '/';
-
+if (['doctor', 'admin'].includes(getRole())) {
+        document.querySelector('.clinical-link').style.display = '';
+    }
     // --- WebSocket ---
     let ws;
     function connectWS() {
