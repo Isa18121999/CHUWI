@@ -7,8 +7,8 @@ from umqtt.simple import MQTTClient
 #python robot_ansiedad_pi5.py
 
 # -------- CONFIGURACIÃ“N --------
-WIFI_SSID = ""
-WIFI_PASS = ""
+WIFI_SSID = "HUAWEI nova Y73"
+WIFI_PASS = "c72f6226c622"
 BROKER_IP = "172.20.10.2"   # IP del Pi 5
 TOPIC = b"robot/distancia"
 
