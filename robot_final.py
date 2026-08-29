@@ -19,6 +19,7 @@ from picamera2 import Picamera2
 robot_ocupado = False
 ultima_distancia_cm = None
 DISTANCIA_ACTIVACION_CM = float(os.environ.get("CHUWI_DISTANCIA_ACTIVACION_CM", "80"))
+DISTANCIA_REARME_CM = float(os.environ.get("CHUWI_DISTANCIA_REARME_CM", "100"))
 MQTT_BROKER_IP = os.environ.get("MQTT_BROKER_IP", "172.20.10.2")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "robot/distancia")
@@ -115,7 +116,10 @@ def hablar(texto):
 
     except Exception as e:
         print("⚠️ ElevenLabs falló:", e)
-        asyncio.run(hablar_edge(texto))
+        try:
+            asyncio.run(hablar_edge(texto))
+        except Exception as fallback_error:
+            print("❌ Error en voz de respaldo:", fallback_error)
 
 
 picam2 = Picamera2()
