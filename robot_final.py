@@ -18,7 +18,7 @@ from picamera2 import Picamera2
 
 robot_ocupado = False
 ultima_distancia_cm = None
-DISTANCIA_ACTIVACION_CM = float(os.environ.get("CHUWI_DISTANCIA_ACTIVACION_CM", "100"))
+DISTANCIA_ACTIVACION_CM = float(os.environ.get("CHUWI_DISTANCIA_ACTIVACION_CM", "80"))
 MQTT_BROKER_IP = os.environ.get("MQTT_BROKER_IP", "172.20.10.2")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "robot/distancia")
