@@ -17,6 +17,12 @@ from groq import Groq
 from picamera2 import Picamera2
 
 robot_ocupado = False
+ultima_distancia_cm = None
+DISTANCIA_ACTIVACION_CM = float(os.environ.get("CHUWI_DISTANCIA_ACTIVACION_CM", "100"))
+MQTT_BROKER_IP = os.environ.get("MQTT_BROKER_IP", "172.20.10.2")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
+MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "robot/distancia")
+
 SALUDO_INICIAL = "Hola, me llamo Chuwi. ¿Cómo te llamas?"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -284,19 +290,67 @@ def tomar_foto(ruta):
     cv2.imwrite(ruta, frame)
 
 
+def manejar_distancia(mensaje):
+    global ultima_distancia_cm
+
+    try:
+        distancia = float(mensaje.decode() if isinstance(mensaje, bytes) else mensaje)
+    except (TypeError, ValueError):
+        print("⚠️ Distancia MQTT inválida:", mensaje)
+        return
+
+    ultima_distancia_cm = distancia
+    print(f"📏 Distancia MQTT: {distancia:.2f} cm")
+
+    if distancia <= DISTANCIA_ACTIVACION_CM:
+        activar_robot()
+
+
+def escuchar_mqtt():
+    try:
+        import paho.mqtt.client as mqtt
+    except ImportError:
+        print("⚠️ paho-mqtt no instalado; se usará solo detección por cámara")
+        return None
+
+    def on_connect(client, userdata, flags, reason_code, properties=None):
+        if reason_code == 0:
+            print(f"✅ MQTT conectado a {MQTT_BROKER_IP}:{MQTT_PORT}")
+            client.subscribe(MQTT_TOPIC)
+            print(f"📡 Suscrito a {MQTT_TOPIC}")
+        else:
+            print("❌ Error de conexión MQTT:", reason_code)
+
+    def on_message(client, userdata, message):
+        manejar_distancia(message.payload)
+
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="chuwi_pi5")
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    try:
+        client.connect(MQTT_BROKER_IP, MQTT_PORT, keepalive=30)
+        client.loop_start()
+        return client
+    except Exception as e:
+        print("⚠️ No se pudo conectar al broker MQTT:", e)
+        return None
+
+
 def activar_robot():
-    global robot_ocupado
+    global robot_ocupado, historial
 
     if robot_ocupado:
         return
 
     robot_ocupado = True
+    historial = []
 
     def run():
         global robot_ocupado
 
         try:
-            print("🚨 Persona detectada")
+            print("🚨 Activando interacción con Chuwi")
 
             hablar(SALUDO_INICIAL)
 
@@ -357,11 +411,16 @@ def salir(sig=None, frame=None):
 signal.signal(signal.SIGINT, salir)
 signal.signal(signal.SIGTERM, salir)
 
-print("👀 Esperando persona...")
+mqtt_client = escuchar_mqtt()
+
+print(
+    f"👀 Esperando persona... "
+    f"(activación MQTT <= {DISTANCIA_ACTIVACION_CM:.0f} cm; cámara como respaldo)"
+)
 
 try:
     while True:
-        if detectar_persona():
+        if not mqtt_client and detectar_persona():
             activar_robot()
         time.sleep(0.3)
 except KeyboardInterrupt:
