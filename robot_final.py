@@ -18,8 +18,11 @@ from picamera2 import Picamera2
 
 robot_ocupado = False
 ultima_distancia_cm = None
+sensor_en_rango = False
 DISTANCIA_ACTIVACION_CM = float(os.environ.get("CHUWI_DISTANCIA_ACTIVACION_CM", "80"))
 DISTANCIA_REARME_CM = float(os.environ.get("CHUWI_DISTANCIA_REARME_CM", "100"))
+DISTANCIA_CONFIRMACIONES = int(os.environ.get("CHUWI_DISTANCIA_CONFIRMACIONES", "3"))
+confirmaciones_distancia = 0
 MQTT_BROKER_IP = os.environ.get("MQTT_BROKER_IP", "172.20.10.2")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.environ.get("MQTT_TOPIC", "robot/distancia")
@@ -295,7 +298,7 @@ def tomar_foto(ruta):
 
 
 def manejar_distancia(mensaje):
-    global ultima_distancia_cm
+    global ultima_distancia_cm, sensor_en_rango, confirmaciones_distancia
 
     try:
         distancia = float(mensaje.decode() if isinstance(mensaje, bytes) else mensaje)
@@ -307,7 +310,22 @@ def manejar_distancia(mensaje):
     print(f"📏 Distancia MQTT: {distancia:.2f} cm")
 
     if distancia <= DISTANCIA_ACTIVACION_CM:
-        activar_robot()
+        confirmaciones_distancia += 1
+        print(
+            f"🎯 Dentro de rango: {confirmaciones_distancia}/"
+            f"{DISTANCIA_CONFIRMACIONES}"
+        )
+
+        if not sensor_en_rango and confirmaciones_distancia >= DISTANCIA_CONFIRMACIONES:
+            sensor_en_rango = True
+            print("✅ Distancia confirmada; activando Chuwi")
+            activar_robot()
+
+    elif distancia >= DISTANCIA_REARME_CM:
+        if sensor_en_rango or confirmaciones_distancia:
+            print("↩️ Sensor fuera de rango; Chuwi puede activarse nuevamente")
+        sensor_en_rango = False
+        confirmaciones_distancia = 0
 
 
 def escuchar_mqtt():
@@ -419,7 +437,9 @@ mqtt_client = escuchar_mqtt()
 
 print(
     f"👀 Esperando persona... "
-    f"(activación MQTT <= {DISTANCIA_ACTIVACION_CM:.0f} cm; cámara como respaldo)"
+    f"(activación MQTT <= {DISTANCIA_ACTIVACION_CM:.0f} cm, "
+    f"{DISTANCIA_CONFIRMACIONES} lecturas consecutivas, "
+    f"rearme >= {DISTANCIA_REARME_CM:.0f} cm; cámara como respaldo)"
 )
 
 try:
