@@ -17,3 +17,4 @@ edge-tts==6.1.18
 opencv-python-headless==4.10.0.84
 SpeechRecognition==3.11.0
 httpx==0.28.1
+paho-mqtt==2.1.0
