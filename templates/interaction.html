@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Interacción{% endblock %}
+
+{% block body %}
+<nav>
+    <span class="logo">🤖 Chuwibot</span>
+    <div class="nav-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/interaction" class="active">Interacción</a>
+        <a href="/history">Historial</a>
+        <a href="/clinical" class="clinical-link" style="display:none;">Registro clínico</a>
+        <a href="#" onclick="logout()">Salir</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="interaction-header">
+        <div>
+            <h1>Interacción en curso</h1>
+            <p>Chuwi está acompañando al paciente</p>
+        </div>
+        <button class="btn btn-danger" onclick="stopRobot()">■ Detener</button>
+    </div>
+
+    <div class="interaction-grid">
+        <aside class="card robot-panel">
+            <h3>Estado del robot</h3>
+            <div class="robot-status-row">
+                <span class="status-dot interacting" id="status-dot"></span>
+                <strong id="robot-state">Interactuando</strong>
+            </div>
+
+            <div class="metric">
+                <span>Distancia</span>
+                <strong id="distance-value">— cm</strong>
+            </div>
+
+            <div class="metric">
+                <span>Emoción observada</span>
+                <strong id="emotion-value">😐 Neutral</strong>
+            </div>
+
+            <div class="metric">
+                <span>Paciente</span>
+                <strong id="patient-value">Paciente no asignado</strong>
+            </div>
+
+            <div class="metric">
+                <span>Sesión</span>
+                <strong id="session-value">—</strong>
+            </div>
+
+            <div class="microphone-status" id="microphone-status">
+                <span class="mic-dot"></span>
+                <span>Esperando audio…</span>
+            </div>
+
+            <div class="ai-status">
+                <span>IA</span>
+                <strong id="ai-status">Activa</strong>
+            </div>
+        </aside>
+
+        <main class="card chat-panel">
+            <div class="chat-header">
+                <div>
+                    <h3>Conversación</h3>
+                    <span id="session-label">Sesión en curso</span>
+                </div>
+                <span class="live-badge">● EN VIVO</span>
+            </div>
+
+            <div id="chat" class="chat-container">
+                <div class="empty-chat">Esperando la primera interacción…</div>
+            </div>
+
+            <div class="chat-footer">
+                <div class="listening-indicator" id="listening-indicator">
+                    <span class="pulse-dot"></span>
+                    <span id="listening-text">Esperando al paciente…</span>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<style>
+    .interaction-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1.5rem; }
+    .interaction-header h1 { font-size:1.8rem; margin-bottom:.35rem; }
+    .interaction-header p { color:var(--text-muted); }
+    .interaction-grid { display:grid; grid-template-columns:320px 1fr; gap:1.5rem; }
+    .robot-panel { min-height:620px; }
+    .robot-status-row { display:flex; align-items:center; font-size:1.05rem; margin-top:1rem; }
+    .metric { margin-top:1.6rem; }
+    .metric span { display:block; color:var(--text-muted); font-size:.82rem; margin-bottom:.35rem; }
+    .metric strong { font-size:1.2rem; }
+    .microphone-status, .ai-status { display:flex; align-items:center; gap:.55rem; margin-top:2rem; padding:.8rem 1rem; background:var(--bg-input); border-radius:10px; color:var(--text-muted); }
+    .ai-status { justify-content:space-between; }
+    .ai-status strong { color:var(--success); }
+    .mic-dot, .pulse-dot { width:10px; height:10px; border-radius:50%; background:var(--success); display:inline-block; }
+    .pulse-dot { animation:pulse 1s infinite; }
+    .chat-panel { min-height:620px; display:flex; flex-direction:column; }
+    .chat-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:1rem; border-bottom:1px solid var(--border); }
+    .chat-header h3 { margin-bottom:.3rem; }
+    .chat-header span { color:var(--text-muted); font-size:.78rem; }
+    .live-badge { color:var(--success) !important; font-weight:700; }
+    #chat { flex:1; min-height:460px; padding:1.2rem 0; overflow-y:auto; }
+    .chat-bubble { max-width:75%; padding:.85rem 1rem; border-radius:14px; margin-bottom:.7rem; line-height:1.45; }
+    .chat-user { background:var(--bg-input); margin-left:auto; border-bottom-right-radius:4px; }
+    .chat-robot { background:var(--primary); margin-right:auto; border-bottom-left-radius:4px; }
+    .chat-meta { display:block; font-size:.7rem; opacity:.75; margin-top:.35rem; }
+    .empty-chat { color:var(--text-muted); text-align:center; padding:5rem 1rem; }
+    .chat-footer { border-top:1px solid var(--border); padding-top:1rem; }
+    .listening-indicator { display:flex; align-items:center; gap:.6rem; color:var(--text-muted); font-size:.88rem; }
+    @media (max-width: 900px) { .interaction-grid { grid-template-columns:1fr; } .robot-panel { min-height:auto; } .chat-panel { min-height:500px; } }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    if (!getToken()) window.location.href = '/';
+    if (['doctor', 'admin'].includes(getRole())) document.querySelector('.clinical-link').style.display = '';
+
+    let ws;
+    let currentSessionId = null;
+
+    const emotionEmoji = {
+        feliz: '😊',
+        triste: '😔',
+        enojado: '😠',
+        asustado: '😨',
+        sorprendido: '😮',
+        neutral: '😐'
+    };
+
+    function connectWS() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/ws/robot`);
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.event === 'robot_state') {
+                updateState(msg.data.state);
+                if (msg.data.state === 'interacting') loadStatus();
+            }
+            if (msg.event === 'robot_speak') {
+                addMessage('robot', msg.data.text);
+                if (msg.data.sesion_id) {
+                    currentSessionId = msg.data.sesion_id;
+                    document.getElementById('session-value').textContent = `#${currentSessionId}`;
+                    loadInteractions(currentSessionId);
+                }
+            }
+        };
+
+        ws.onopen = () => {
+            try { ws.send('interaction'); } catch (_) {}
+        };
+        ws.onclose = () => setTimeout(connectWS, 3000);
+    }
+
+    function updateState(state) {
+        const labels = { stopped:'Detenido', waiting:'Esperando', interacting:'Interactuando' };
+        const dot = document.getElementById('status-dot');
+        dot.className = `status-dot ${state}`;
+        document.getElementById('robot-state').textContent = labels[state] || state;
+        if (state !== 'interacting') {
+            document.getElementById('listening-text').textContent = state === 'waiting' ? 'Esperando una persona…' : 'Robot detenido';
+        }
+    }
+
+    function addMessage(role, text, timestamp = null) {
+        const chat = document.getElementById('chat');
+        const empty = chat.querySelector('.empty-chat');
+        if (empty) empty.remove();
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${role === 'robot' ? 'chat-robot' : 'chat-user'}`;
+        bubble.textContent = text;
+        const meta = document.createElement('span');
+        meta.className = 'chat-meta';
+        meta.textContent = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+        bubble.appendChild(meta);
+        chat.appendChild(bubble);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function loadStatus() {
+        const res = await apiFetch('/api/robot/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        updateState(data.state);
+        document.getElementById('distance-value').textContent = data.distance_cm != null ? `${Number(data.distance_cm).toFixed(0)} cm` : '— cm';
+        document.getElementById('patient-value').textContent = data.active_patient || 'Paciente no asignado';
+        document.getElementById('emotion-value').textContent = `${emotionEmoji[data.emotion] || '😐'} ${data.emotion || 'Neutral'}`;
+        document.getElementById('session-value').textContent = data.session_id ? `#${data.session_id}` : '—';
+        currentSessionId = data.session_id || currentSessionId;
+        const listening = Boolean(data.listening);
+        document.getElementById('microphone-status').innerHTML = listening
+            ? '<span class="mic-dot"></span><span>Escuchando al paciente…</span>'
+            : '<span class="mic-dot"></span><span>Procesando / esperando…</span>';
+        document.getElementById('listening-text').textContent = listening ? 'Escuchando al paciente…' : 'Esperando respuesta…';
+        if (currentSessionId) loadInteractions(currentSessionId);
+    }
+
+    async function loadInteractions(sessionId) {
+        const res = await apiFetch(`/api/sessions/${sessionId}/interactions`);
+        if (!res.ok) return;
+        const items = await res.json();
+        const chat = document.getElementById('chat');
+        chat.innerHTML = '';
+        for (const item of items) {
+            addMessage(item.rol === 'robot' ? 'robot' : 'user', item.texto, item.timestamp);
+            if (item.emocion) {
+                document.getElementById('emotion-value').textContent = `${emotionEmoji[item.emocion] || '😐'} ${item.emocion}`;
+            }
+        }
+        if (!items.length) chat.innerHTML = '<div class="empty-chat">Esperando la primera interacción…</div>';
+    }
+
+    async function stopRobot() {
+        const res = await apiFetch('/api/robot/stop', { method:'POST' });
+        if (res.ok) {
+            showToast('Robot detenido');
+            updateState('stopped');
+        }
+    }
+
+    connectWS();
+    loadStatus();
+    setInterval(loadStatus, 3000);
+</script>
+{% endblock %}
