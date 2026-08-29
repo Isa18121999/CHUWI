@@ -26,8 +26,8 @@
         <aside class="card robot-panel">
             <h3>Estado del robot</h3>
             <div class="robot-status-row">
-                <span class="status-dot interacting" id="status-dot"></span>
-                <strong id="robot-state">Interactuando</strong>
+                <span class="status-dot stopped" id="status-dot"></span>
+                <strong id="robot-state">Cargando...</strong>
             </div>
 
             <div class="metric">
@@ -148,7 +148,27 @@
                 if (msg.data.sesion_id) {
                     currentSessionId = msg.data.sesion_id;
                     document.getElementById('session-value').textContent = `#${currentSessionId}`;
-                    loadInteractions(currentSessionId);
+                    document.getElementById('session-label').textContent = `Sesión #${currentSessionId}`;
+                }
+            }
+            if (msg.event === 'robot_listening') {
+                updateListening(Boolean(msg.data.listening));
+            }
+            if (msg.event === 'robot_heard') {
+                addMessage('user', msg.data.text);
+            }
+            if (msg.event === 'robot_emotion') {
+                updateEmotion(msg.data.emotion);
+            }
+            if (msg.event === 'robot_interaction') {
+                const role = msg.data.rol === 'robot' ? 'robot' : 'user';
+                const last = document.querySelector('#chat .chat-bubble:last-child');
+                if (!last || last.dataset.eventKey !== `${role}:${msg.data.texto}`) addMessage(role, msg.data.texto);
+                if (msg.data.emocion) updateEmotion(msg.data.emocion);
+                if (msg.data.sesion_id) {
+                    currentSessionId = msg.data.sesion_id;
+                    document.getElementById('session-value').textContent = `#${currentSessionId}`;
+                    document.getElementById('session-label').textContent = `Sesión #${currentSessionId}`;
                 }
             }
         };
@@ -164,9 +184,17 @@
         const dot = document.getElementById('status-dot');
         dot.className = `status-dot ${state}`;
         document.getElementById('robot-state').textContent = labels[state] || state;
-        if (state !== 'interacting') {
-            document.getElementById('listening-text').textContent = state === 'waiting' ? 'Esperando una persona…' : 'Robot detenido';
-        }
+    }
+
+    function updateEmotion(emotion) {
+        document.getElementById('emotion-value').textContent = `${emotionEmoji[emotion] || '😐'} ${emotion || 'Neutral'}`;
+    }
+
+    function updateListening(listening) {
+        document.getElementById('microphone-status').innerHTML = listening
+            ? '<span class="mic-dot"></span><span>Escuchando al paciente…</span>'
+            : '<span class="mic-dot"></span><span>Procesando / esperando…</span>';
+        document.getElementById('listening-text').textContent = listening ? 'Escuchando al paciente…' : 'Esperando respuesta…';
     }
 
     function addMessage(role, text, timestamp = null) {
@@ -175,7 +203,8 @@
         if (empty) empty.remove();
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${role === 'robot' ? 'chat-robot' : 'chat-user'}`;
-        bubble.textContent = text;
+        bubble.dataset.eventKey = `${role}:${text}`;
+        bubble.appendChild(document.createTextNode(text));
         const meta = document.createElement('span');
         meta.className = 'chat-meta';
         meta.textContent = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
@@ -191,14 +220,11 @@
         updateState(data.state);
         document.getElementById('distance-value').textContent = data.distance_cm != null ? `${Number(data.distance_cm).toFixed(0)} cm` : '— cm';
         document.getElementById('patient-value').textContent = data.active_patient || 'Paciente no asignado';
-        document.getElementById('emotion-value').textContent = `${emotionEmoji[data.emotion] || '😐'} ${data.emotion || 'Neutral'}`;
+        updateEmotion(data.emotion);
         document.getElementById('session-value').textContent = data.session_id ? `#${data.session_id}` : '—';
+        document.getElementById('session-label').textContent = data.session_id ? `Sesión #${data.session_id}` : 'Sesión en curso';
         currentSessionId = data.session_id || currentSessionId;
-        const listening = Boolean(data.listening);
-        document.getElementById('microphone-status').innerHTML = listening
-            ? '<span class="mic-dot"></span><span>Escuchando al paciente…</span>'
-            : '<span class="mic-dot"></span><span>Procesando / esperando…</span>';
-        document.getElementById('listening-text').textContent = listening ? 'Escuchando al paciente…' : 'Esperando respuesta…';
+        updateListening(Boolean(data.listening));
         if (currentSessionId) loadInteractions(currentSessionId);
     }
 
@@ -209,10 +235,9 @@
         const chat = document.getElementById('chat');
         chat.innerHTML = '';
         for (const item of items) {
-            addMessage(item.rol === 'robot' ? 'robot' : 'user', item.texto, item.timestamp);
-            if (item.emocion) {
-                document.getElementById('emotion-value').textContent = `${emotionEmoji[item.emocion] || '😐'} ${item.emocion}`;
-            }
+            const role = item.rol === 'robot' ? 'robot' : 'user';
+            addMessage(role, item.texto, item.timestamp);
+            if (item.emocion) updateEmotion(item.emocion);
         }
         if (!items.length) chat.innerHTML = '<div class="empty-chat">Esperando la primera interacción…</div>';
     }
