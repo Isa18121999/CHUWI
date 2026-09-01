@@ -2,6 +2,8 @@ from chuwi_controller import ChuwiController
 from chuwi_ui import ChuwiUI
 from chuwi_face import ChuwiFace
 from chuwi_ai_engine import ChuwiAIEngine
+from chuwi_conversation import ChuwiConversation
+from memory_manager import MemoryManager
 
 
 class ChuwiRuntime:
@@ -10,6 +12,11 @@ class ChuwiRuntime:
         self.ui = ChuwiUI()
         self.face = ChuwiFace()
         self.ai = ChuwiAIEngine()
+        self.memory = MemoryManager()
+        self.conversation = ChuwiConversation(
+            memory=self.memory,
+            ai_engine=self.ai
+        )
 
     def update(self, distance):
         self.controller.update_distance(distance)
@@ -21,5 +28,14 @@ class ChuwiRuntime:
         return state
 
     def interact(self, message, context=None):
-        response = self.ai.generate_response(message, context)
+        context = context or self.ai.build_context(
+            user_profile=self.memory.get_user(),
+            conversation=self.memory.history
+        )
+
+        response = self.conversation.generate_response(
+            message,
+            context=context
+        )
+
         return response
