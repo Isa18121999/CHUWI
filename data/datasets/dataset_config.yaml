@@ -1,0 +1,37 @@
+datasets:
+  facial:
+    purpose: "Reconocimiento de emociones faciales infantiles"
+    modality: "image"
+    target_emotions:
+      - HAPPY
+      - SAD
+      - FEAR
+      - ANGER
+      - NEUTRAL
+
+  voice:
+    purpose: "Reconocimiento de emociones en voz infantil"
+    modality: "audio"
+    target_emotions:
+      - HAPPY
+      - SAD
+      - FEAR
+      - ANGER
+      - NEUTRAL
+
+  text:
+    purpose: "Clasificación emocional de mensajes pediátricos"
+    modality: "text"
+    target_emotions:
+      - HAPPY
+      - SAD
+      - FEAR
+      - ANXIETY
+      - CALM
+
+mapping_for_chuwi:
+  FEAR: "miedo a procedimientos médicos"
+  SAD: "tristeza por hospitalización"
+  ANXIETY: "ansiedad médica"
+  CALM: "estado emocional tranquilo"
+  HAPPY: "interacción positiva"
