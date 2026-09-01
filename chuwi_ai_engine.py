@@ -1,12 +1,16 @@
+from chuwi_emotional_manager import ChuwiEmotionalManager
+
+
 class ChuwiAIEngine:
-    """Motor base de inteligencia conversacional de Chuwi."""
+    """Motor base de inteligencia conversacional adaptativa de Chuwi."""
 
     def __init__(self):
         self.personality = {
             "name": "Chuwi",
             "style": "amable, paciente y motivador",
-            "audience": "niños"
+            "audience": "pacientes pediátricos"
         }
+        self.emotional_manager = ChuwiEmotionalManager()
 
     def build_context(self, user_profile=None, conversation=None):
         return {
@@ -17,10 +21,16 @@ class ChuwiAIEngine:
     def generate_response(self, message, context=None):
         context = context or {}
 
-        # Capa inicial preparada para conectar un modelo IA real.
-        # Las respuestas finales serán generadas considerando contexto,
-        # memoria y personalidad de Chuwi.
-        if "hola" in message.lower():
-            return "Hola, me alegra verte. ¿Cómo estás hoy?"
+        emotional_state = self.emotional_manager.analyze(message)
+        strategy = self.emotional_manager.get_strategy(emotional_state)
 
-        return "Estoy escuchándote y quiero ayudarte."
+        if emotional_state == "FEAR":
+            return "Estoy contigo. Podemos hablar de lo que sientes y hacerlo paso a paso.", strategy
+
+        if emotional_state == "SAD":
+            return "Estoy aquí para escucharte. ¿Quieres contarme cómo te sientes?", strategy
+
+        if "hola" in message.lower():
+            return "Hola, me alegra verte. ¿Cómo estás hoy?", strategy
+
+        return "Te estoy escuchando y quiero acompañarte.", strategy
