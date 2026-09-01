@@ -2,10 +2,11 @@ from chuwi_emotional_manager import ChuwiEmotionalManager
 
 
 class ChuwiConversation:
-    def __init__(self, memory=None, emotional_manager=None):
+    def __init__(self, memory=None, emotional_manager=None, ai_engine=None):
         self.context = {}
         self.memory = memory
         self.emotional_manager = emotional_manager or ChuwiEmotionalManager()
+        self.ai_engine = ai_engine
 
     def analyze_intent(self, message):
         text = message.lower()
@@ -21,15 +22,30 @@ class ChuwiConversation:
 
         return "conversation"
 
-    def generate_response(self, message, user_name=None):
-        intent = self.analyze_intent(message)
-        emotional_state = self.emotional_manager.analyze_interaction(message)
+    def build_context(self, user_name=None):
+        context = {}
 
         if self.memory:
-            self.memory.remember(message)
             user = self.memory.get_user()
-            if user_name is None:
-                user_name = user.get("name")
+            context["profile"] = user
+            context["history"] = user.get("history", [])
+
+        if user_name:
+            context["user_name"] = user_name
+
+        return context
+
+    def generate_response(self, message, user_name=None):
+        if self.memory:
+            self.memory.remember(message)
+
+        context = self.build_context(user_name)
+
+        if self.ai_engine:
+            return self.ai_engine.generate_response(message, context)
+
+        intent = self.analyze_intent(message)
+        emotional_state = self.emotional_manager.analyze_interaction(message)
 
         if intent == "greeting":
             name = user_name if user_name else "amigo"
