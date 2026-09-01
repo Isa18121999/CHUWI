@@ -21,16 +21,23 @@ class ChuwiAIEngine:
     def generate_response(self, message, context=None):
         context = context or {}
 
-        emotional_state = self.emotional_manager.analyze(message)
-        strategy = self.emotional_manager.get_strategy(emotional_state)
+        emotional_result = self.emotional_manager.analyze_interaction(message)
+        emotional_state = emotional_result["emotion"]
+        strategy = emotional_result["strategy"]
+
+        name = context.get("profile", {}).get("name")
+        greeting = f"Hola {name}, " if name else ""
 
         if emotional_state == "FEAR":
-            return "Estoy contigo. Podemos hablar de lo que sientes y hacerlo paso a paso.", strategy
+            return greeting + "Estoy contigo. Podemos hablar de lo que sientes y hacerlo paso a paso.", strategy
 
         if emotional_state == "SAD":
-            return "Estoy aquí para escucharte. ¿Quieres contarme cómo te sientes?", strategy
+            return greeting + "Estoy aquí para escucharte. ¿Quieres contarme cómo te sientes?", strategy
+
+        if emotional_state == "ANXIOUS":
+            return greeting + "Podemos respirar juntos y conversar tranquilamente.", strategy
 
         if "hola" in message.lower():
-            return "Hola, me alegra verte. ¿Cómo estás hoy?", strategy
+            return greeting + "me alegra verte. ¿Cómo estás hoy?", strategy
 
-        return "Te estoy escuchando y quiero acompañarte.", strategy
+        return greeting + "Te estoy escuchando y quiero acompañarte.", strategy
