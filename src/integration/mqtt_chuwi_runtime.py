@@ -7,12 +7,10 @@ class MQTTChuwiRuntime:
     def on_message(self, topic, payload):
         try:
             distance = float(payload.decode())
-            self.handle_distance(distance)
+            return self.handle_distance(distance)
         except (UnicodeDecodeError, TypeError, ValueError) as error:
             print("MQTT Chuwi error:", error)
+            return None
 
     def handle_distance(self, distance):
-        if distance <= 80:
-            self.chuwi_runtime.activate_interaction()
-        else:
-            self.chuwi_runtime.return_idle()
+        return self.chuwi_runtime.update(distance)
