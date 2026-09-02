@@ -3,7 +3,7 @@ from src.interface.chuwi_ui import ChuwiUI
 from src.robot.chuwi_face import ChuwiFace
 from src.core.chuwi_ai_engine import ChuwiAIEngine
 from src.core.chuwi_conversation import ChuwiConversation
-from memory_manager import MemoryManager
+from src.memory.memory_manager import ChuwiMemory
 
 
 class ChuwiRuntime:
@@ -12,7 +12,7 @@ class ChuwiRuntime:
         self.ui = ChuwiUI()
         self.face = ChuwiFace()
         self.ai = ChuwiAIEngine()
-        self.memory = MemoryManager()
+        self.memory = ChuwiMemory()
         self.conversation = ChuwiConversation(memory=self.memory, ai_engine=self.ai)
 
     def update(self, distance):
@@ -23,8 +23,13 @@ class ChuwiRuntime:
         return state
 
     def interact(self, message, context=None):
-        context = context or self.ai.build_context(
-            user_profile=self.memory.get_user(),
-            conversation=self.memory.history
-        )
-        return self.conversation.generate_response(message, context=context)
+        if context is None:
+            context = self.ai.build_context(
+                user_profile=self.memory.get_user(),
+                conversation=self.memory.history,
+            )
+        response = self.ai.generate_response(message, context)
+        if isinstance(response, tuple):
+            response = response[0]
+        self.memory.remember(message)
+        return response
