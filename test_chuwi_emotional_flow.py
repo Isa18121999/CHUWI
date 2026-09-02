@@ -1,6 +1,6 @@
 from memory_manager import ChuwiMemory
-from chuwi_emotional_manager import ChuwiEmotionalManager
-from chuwi_ai_engine import ChuwiAIEngine
+from src.emotion.chuwi_emotional_manager import ChuwiEmotionalManager
+from src.core.chuwi_ai_engine import ChuwiAIEngine
 
 
 def run_tests():
