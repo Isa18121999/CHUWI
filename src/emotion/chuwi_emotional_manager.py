@@ -11,5 +11,5 @@ class ChuwiEmotionalManager:
 
     def analyze_interaction(self, message):
         emotion = self.adapter.detect_emotion(message)
-        strategy = self.database.get_strategy(emotion)
+        strategy = self.database.get_strategy(emotion.lower())
         return {"emotion": emotion, "strategy": strategy}
