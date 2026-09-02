@@ -1,0 +1,31 @@
+graph TD
+    subgraph "Internet"
+        U[👤 Usuario - Navegador] -->|HTTPS| CF[☁️ Cloudflare Tunnel]
+    end
+
+    subgraph "Raspberry Pi / Servidor"
+        CF -->|localhost:8000| WS[🌐 FastAPI - Servidor Web]
+
+        subgraph "Web App"
+            WS --> AUTH[🔐 Login / Autenticación\nJWT Tokens]
+            AUTH --> DASH[📊 Dashboard\nJinja2 + HTMX]
+            AUTH --> CTRL[🎮 Panel de Control\nActivar/Detener Robot]
+            AUTH --> HIST[📋 Historial\nInteracciones pasadas]
+        end
+
+        subgraph "Base de Datos - PostgreSQL"
+            DB[(🐘 PostgreSQL\nchuwibot_db)]
+            DB --- T1[usuarios]
+            DB --- T2[sesiones_robot]
+            DB --- T3[interacciones]
+            DB --- T4[metricas]
+            DB --- T5[notificaciones]
+        end
+
+        subgraph "Robot Core"
+            RC[🤖 Robot Process]
+            RC --> CAM[📷 Cámara USB]
+            RC --> MIC[🎤 Micrófono]
+            RC --> SPK[🔊 Altavoz]
+        end
+    end
