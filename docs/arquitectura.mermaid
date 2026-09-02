@@ -1,0 +1,36 @@
+graph TD
+    subgraph "Loop Principal"
+        A[🔄 Loop Infinito] --> B{detectar_persona}
+        B -->|No| A
+        B -->|Sí| C[activar_robot]
+    end
+
+    subgraph "Flujo de Interacción"
+        C --> D[tomar_foto /tmp/foto.jpg]
+        D --> E[detectar_emocion - Gemini API]
+        E --> F[generar_respuesta - Groq/LLaMA]
+        F --> G[hablar - TTS]
+        G --> H{escuchar - Micrófono}
+        H -->|Texto recibido| I{¿Dijo 'chau'?}
+        I -->|No| F
+        I -->|Sí| J[Despedirse] --> A
+        H -->|Sin texto x3| K[Timeout] --> A
+    end
+
+    subgraph "APIs Externas"
+        E --- L[Google Gemini 2.5 Flash\nAnálisis de emoción facial]
+        F --- M[Groq - LLaMA 3.1 8B\nGeneración de respuesta]
+        G --- N[ElevenLabs TTS\nVoz principal]
+        G --- O[Edge TTS - es-MX-DaliaNeural\nVoz fallback]
+    end
+
+    subgraph "Hardware"
+        P[📷 Cámara USB - OpenCV] --> B
+        P --> D
+        Q[🎤 Micrófono - SpeechRecognition] --> H
+        R[🔊 Altavoz - aplay/mpg123] --> G
+    end
+
+    subgraph "Memoria Conversacional"
+        S[historial - últimos 6 mensajes] --> F
+    end
