@@ -15,17 +15,24 @@ def run_tests():
     assert user["name"] == "Paciente"
     print("OK - Memoria del paciente")
 
-    result = emotional.analyze_interaction("Tengo miedo de mi operación")
-    assert result["emotion"] in ["FEAR", "fear"]
-    print("OK - Detección de miedo")
+    cases = [
+        ("Tengo miedo de mi operación", "FEAR", "acompañamiento y calma"),
+        ("Extraño mi casa y mi familia", "SAD", "escucha activa y apoyo"),
+        ("Estoy muy nervioso por estar en el hospital", "ANXIOUS", "respiración y conversación tranquila"),
+        ("Estoy molesto porque no puedo hacerlo", "FRUSTRATED", "motivación y distracción"),
+        ("Estoy feliz, todo está genial", "HAPPY", "refuerzo emocional"),
+    ]
 
-    response = ai.generate_response("Tengo miedo de mi operación", user)
+    for message, expected_emotion, expected_strategy in cases:
+        result = emotional.analyze_interaction(message)
+        assert result["emotion"] == expected_emotion
+        assert result["strategy"] == expected_strategy
+        print(f"OK - {expected_emotion}: {expected_strategy}")
+
+    response, strategy = ai.generate_response("Tengo miedo de mi operación", user)
     assert response is not None
-    print("OK - Respuesta adaptativa")
-
-    result = emotional.analyze_interaction("Extraño mi casa y mi familia")
-    assert result["emotion"] in ["SAD", "sad"]
-    print("OK - Detección de tristeza")
+    assert strategy == "acompañamiento y calma"
+    print("OK - Respuesta adaptativa con estrategia emocional")
 
     print("=== TODAS LAS PRUEBAS COMPLETADAS ===")
 
