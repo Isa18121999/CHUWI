@@ -1,5 +1,5 @@
 from src.emotion.chuwi_emotional_adaptation import ChuwiEmotionalAdaptation
-from emotion_database import EmotionDatabase
+from src.emotion.emotion_database import EmotionDatabase
 
 
 class ChuwiEmotionalManager:
