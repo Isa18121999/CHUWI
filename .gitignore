@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+robot_env/
+
+# Secrets and local configuration
+.env
+!.env.example
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Data and model artifacts
+data/raw/
+data/processed/
+models/checkpoints/
+*.pt
+*.pth
+*.onnx
+*.h5
+*.keras
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
