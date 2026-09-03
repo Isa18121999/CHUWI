@@ -1,0 +1,19 @@
+dataset:
+  name: Chuwi Facial Emotion Dataset
+  input_size: 224
+
+classes:
+  - CALM
+  - HAPPY
+  - SAD
+  - FEAR
+  - ANGER
+  - SURPRISE
+  - DISGUST
+
+training:
+  batch_size: 32
+  learning_rate: 0.0001
+  epochs: 20
+  augmentation: true
+  class_balancing: true
