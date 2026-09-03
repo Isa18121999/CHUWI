@@ -6,6 +6,8 @@ from torchvision import transforms
 
 
 class ChuwiFacialDataset(Dataset):
+    """Unified loader for Chuwi facial datasets."""
+
     def __init__(self, csv_file, image_dir, transform=None):
         self.data = pd.read_csv(csv_file)
         self.image_dir = image_dir
@@ -25,5 +27,13 @@ class ChuwiFacialDataset(Dataset):
         path = os.path.join(self.image_dir, row['image'])
         image = Image.open(path).convert('RGB')
         image = self.transform(image)
-        label = self.label_to_id[row['emotion']]
-        return image, label
+
+        emotion = row.get('emotion', 'unlabeled_emotion')
+        label = self.label_to_id[emotion]
+
+        return {
+            'image': image,
+            'label': label,
+            'emotion': emotion,
+            'age_group': row.get('age_group', 'unknown')
+        }
