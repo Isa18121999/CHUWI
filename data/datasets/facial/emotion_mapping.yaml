@@ -1,0 +1,19 @@
+chuwi_emotions:
+  CALM:
+    - Natural
+    - Neutral
+  HAPPY:
+    - Joy
+    - Happy
+  SAD:
+    - Sad
+    - Sadness
+  FEAR:
+    - Fear
+  ANGER:
+    - Anger
+    - Frustrated
+  SURPRISE:
+    - Surprise
+  DISGUST:
+    - Disgust
